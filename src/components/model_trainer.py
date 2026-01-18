@@ -10,6 +10,7 @@ from sklearn.metrics import accuracy_score
 
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AdamW
 
+from src.components.data_transformation import DataTransformation
 from src.logger.logging import logging
 from src.exception.exception import CustomException
 
@@ -169,3 +170,13 @@ class ModelTrainer:
 
         except Exception as e:
             raise CustomException(e, sys)
+from src.components.data_ingestion import DataIngestion
+
+if __name__=="__main__":
+    obj = DataIngestion()
+    obj.initiate_data_ingestion()
+
+    trns = DataTransformation()
+    train_arr, test_arr = trns.initiate_data_transformation()
+    model_trainer = ModelTrainer()
+    model_trainer.train_model(dataset_path="data/reviews.csv")
