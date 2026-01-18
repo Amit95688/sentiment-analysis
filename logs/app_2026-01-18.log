@@ -2,3 +2,7 @@
 [2026-01-18 10:04:45,929: ERROR: exception]: Exception caught: division by zero
 [2026-01-18 10:36:36,492: INFO: exception]: Attempting division by zero
 [2026-01-18 10:36:36,492: ERROR: exception]: Exception caught: division by zero
+[2026-01-18 15:45:32,901: INFO: data_ingestion]: Data Ingestion method starts
+[2026-01-18 15:45:35,910: INFO: data_ingestion]: Dataset read as pandas dataframe
+[2026-01-18 15:45:41,623: INFO: data_ingestion]: Train test split initiated
+[2026-01-18 15:45:48,235: INFO: data_ingestion]: Ingestion of data is completed
