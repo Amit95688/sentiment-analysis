@@ -1,0 +1,4 @@
+[2026-01-18 10:04:45,929: INFO: exception]: Attempting division by zero
+[2026-01-18 10:04:45,929: ERROR: exception]: Exception caught: division by zero
+[2026-01-18 10:36:36,492: INFO: exception]: Attempting division by zero
+[2026-01-18 10:36:36,492: ERROR: exception]: Exception caught: division by zero
