@@ -1,6 +1,8 @@
 # Ignore large data files
 artifacts/Reviews.csv
-
+artifacts/train.csv
+artifacts/test.csv
+artifacts/Data.csv
 # Python
 __pycache__/
 *.py[cod]
