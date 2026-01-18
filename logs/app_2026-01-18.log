@@ -6,3 +6,15 @@
 [2026-01-18 15:45:35,910: INFO: data_ingestion]: Dataset read as pandas dataframe
 [2026-01-18 15:45:41,623: INFO: data_ingestion]: Train test split initiated
 [2026-01-18 15:45:48,235: INFO: data_ingestion]: Ingestion of data is completed
+[2026-01-18 19:21:10,983: INFO: data_ingestion]: Data Ingestion method starts
+[2026-01-18 19:21:13,639: INFO: data_ingestion]: Dataset read as pandas dataframe
+[2026-01-18 19:21:19,279: INFO: data_ingestion]: Train test split initiated
+[2026-01-18 19:21:25,743: INFO: data_ingestion]: Ingestion of data is completed
+[2026-01-18 19:21:27,612: INFO: data_transformation]: Data Transformation method starts
+[2026-01-18 19:21:30,412: INFO: data_transformation]: Training and Testing data read successfully
+[2026-01-18 19:23:50,276: INFO: data_ingestion]: Data Ingestion method starts
+[2026-01-18 19:23:53,391: INFO: data_ingestion]: Dataset read as pandas dataframe
+[2026-01-18 19:24:00,740: INFO: data_ingestion]: Train test split initiated
+[2026-01-18 19:24:07,863: INFO: data_ingestion]: Ingestion of data is completed
+[2026-01-18 19:24:19,066: INFO: data_transformation]: Data Transformation method starts
+[2026-01-18 19:24:22,724: INFO: data_transformation]: Training and Testing data read successfully

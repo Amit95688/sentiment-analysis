@@ -5,14 +5,14 @@ from dataclasses import dataclass
 
 import torch
 from torch.utils.data import Dataset, DataLoader
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AdamW
 
-from src.components.data_transformation import DataTransformation
 from src.logger.logging import logging
 from src.exception.exception import CustomException
+from src.components.data_transformation import DataTransformation
+from src.components.data_ingestion import DataIngestion
 
 
 # ---------------------- CONFIG ----------------------
@@ -28,19 +28,9 @@ class ModelTrainerConfig:
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-# ---------------------- LABEL FUNCTION ----------------------
-def get_label(compound):
-    if compound >= 0.05:
-        return 1
-    elif compound <= -0.05:
-        return 0
-    else:
-        return None
-
-
-# ---------------------- DATASET CLASS ----------------------
+# ---------------------- DATASET ----------------------
 class ReviewDataset(Dataset):
-    def __init__(self, df, tokenizer, max_len=128):
+    def __init__(self, df, tokenizer, max_len):
         self.texts = df["Text"].astype(str).values
         self.labels = df["label"].values
         self.tokenizer = tokenizer
@@ -57,60 +47,62 @@ class ReviewDataset(Dataset):
             truncation=True,
             return_tensors="pt",
         )
-
         return {
-            "input_ids": encoding["input_ids"].squeeze(),
-            "attention_mask": encoding["attention_mask"].squeeze(),
+            "input_ids": encoding["input_ids"].squeeze(0),
+            "attention_mask": encoding["attention_mask"].squeeze(0),
             "labels": torch.tensor(self.labels[idx], dtype=torch.long),
         }
 
 
-# ---------------------- TRAINER CLASS ----------------------
+# ---------------------- TRAINER ----------------------
 class ModelTrainer:
     def __init__(self):
         self.config = ModelTrainerConfig()
 
-    def train_model(self, dataset_path):
+    def train_model(self, train_pkl_path, val_pkl_path):
         try:
-            logging.info("Loading dataset...")
-            df = pd.read_csv(dataset_path)
+            logging.info("Loading transformed datasets...")
+            train_df = pd.read_pickle(train_pkl_path)
+            val_df = pd.read_pickle(val_pkl_path)
 
-            # Create binary labels
-            df["label"] = df["compound"].apply(get_label)
-            df = df.dropna(subset=["label"])
-            df["label"] = df["label"].astype(int)
-
-            logging.info(f"Dataset size after filtering: {len(df)}")
-
-            # Train test split
-            train_df, val_df = train_test_split(df, test_size=0.1, random_state=42, stratify=df["label"])
-
-            logging.info("Loading tokenizer and model...")
-            tokenizer = AutoTokenizer.from_pretrained(self.config.pretrained_model_name)
+            tokenizer = AutoTokenizer.from_pretrained(
+                self.config.pretrained_model_name
+            )
 
             model = AutoModelForSequenceClassification.from_pretrained(
                 self.config.pretrained_model_name,
                 num_labels=self.config.num_labels,
+            ).to(self.config.device)
+
+            train_dataset = ReviewDataset(
+                train_df, tokenizer, self.config.max_len
+            )
+            val_dataset = ReviewDataset(
+                val_df, tokenizer, self.config.max_len
             )
 
-            model.to(self.config.device)
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=self.config.batch_size,
+                shuffle=True,
+            )
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=self.config.batch_size,
+            )
 
-            # Create datasets
-            train_dataset = ReviewDataset(train_df, tokenizer, self.config.max_len)
-            val_dataset = ReviewDataset(val_df, tokenizer, self.config.max_len)
+            optimizer = AdamW(
+                model.parameters(),
+                lr=self.config.lr
+            )
 
-            train_loader = DataLoader(train_dataset, batch_size=self.config.batch_size, shuffle=True)
-            val_loader = DataLoader(val_dataset, batch_size=self.config.batch_size)
-
-            optimizer = AdamW(model.parameters(), lr=self.config.lr)
-
-            logging.info("Starting training...")
-
-            best_acc = 0
+            best_acc = 0.0
+            logging.info("🚀 Training started")
 
             for epoch in range(self.config.epochs):
+                # -------- TRAINING --------
                 model.train()
-                total_loss = 0
+                total_loss = 0.0
 
                 for batch in train_loader:
                     optimizer.zero_grad()
@@ -132,9 +124,12 @@ class ModelTrainer:
                     total_loss += loss.item()
 
                 avg_loss = total_loss / len(train_loader)
-                logging.info(f"Epoch {epoch+1} Training Loss: {avg_loss:.4f}")
+                logging.info(
+                    f"Epoch {epoch+1}/{self.config.epochs} "
+                    f"Training Loss: {avg_loss:.4f}"
+                )
 
-                # ---------------- VALIDATION ----------------
+                # -------- VALIDATION --------
                 model.eval()
                 preds, true_labels = [], []
 
@@ -149,34 +144,43 @@ class ModelTrainer:
                             attention_mask=attention_mask,
                         )
 
-                        logits = outputs.logits
-                        predictions = torch.argmax(logits, dim=1)
+                        predictions = torch.argmax(
+                            outputs.logits, dim=1
+                        )
 
                         preds.extend(predictions.cpu().numpy())
                         true_labels.extend(labels.cpu().numpy())
 
                 acc = accuracy_score(true_labels, preds)
-                logging.info(f"Epoch {epoch+1} Validation Accuracy: {acc:.4f}")
+                logging.info(
+                    f"Epoch {epoch+1} Validation Accuracy: {acc:.4f}"
+                )
 
-                # Save best model
+                # -------- SAVE BEST MODEL --------
                 if acc > best_acc:
                     best_acc = acc
                     os.makedirs(self.config.output_dir, exist_ok=True)
                     model.save_pretrained(self.config.output_dir)
                     tokenizer.save_pretrained(self.config.output_dir)
-                    logging.info("✅ Best model saved!")
+                    logging.info("✅ Best model saved")
 
-            logging.info(f"Training complete! Best Accuracy: {best_acc:.4f}")
+            logging.info(
+                f"🎉 Training complete | Best Accuracy: {best_acc:.4f}"
+            )
 
         except Exception as e:
             raise CustomException(e, sys)
-from src.components.data_ingestion import DataIngestion
 
-if __name__=="__main__":
-    obj = DataIngestion()
-    obj.initiate_data_ingestion()
 
-    trns = DataTransformation()
-    train_arr, test_arr = trns.initiate_data_transformation()
-    model_trainer = ModelTrainer()
-    model_trainer.train_model(dataset_path="data/reviews.csv")
+# ---------------------- MAIN ----------------------
+if __name__ == "__main__":
+    ingestion = DataIngestion()
+    train_path, test_path = ingestion.initiate_data_ingestion()
+
+    transformation = DataTransformation()
+    train_pkl, test_pkl = transformation.initiate_data_transformation(
+        train_path, test_path
+    )
+
+    trainer = ModelTrainer()
+    trainer.train_model(train_pkl, test_pkl)

@@ -1,10 +1,8 @@
 import os
 import sys
+sys.path.insert(0, "/home/amitdubey/Downloads/sentiment-analysis")
 
 from src.components.data_transformation import DataTransformation
-
-# Add project root to sys.path for direct execution
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))  
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from src.exception import CustomException
