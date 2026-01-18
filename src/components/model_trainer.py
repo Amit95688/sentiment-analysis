@@ -21,7 +21,7 @@ class ModelTrainerConfig:
     pretrained_model_name: str = "nlptown/bert-base-multilingual-uncased-sentiment"
     num_labels: int = 2
     output_dir: str = "models/"
-    batch_size: int = 16
+    batch_size: int = 8  # Reduced batch size to lower memory usage
     lr: float = 2e-5
     epochs: int = 3
     max_len: int = 128
@@ -85,10 +85,14 @@ class ModelTrainer:
                 train_dataset,
                 batch_size=self.config.batch_size,
                 shuffle=True,
+                num_workers=4,  # Increased for faster data loading
+                pin_memory=True
             )
             val_loader = DataLoader(
                 val_dataset,
                 batch_size=self.config.batch_size,
+                num_workers=4,  # Increased for faster data loading
+                pin_memory=True
             )
 
             optimizer = AdamW(
@@ -99,6 +103,7 @@ class ModelTrainer:
             best_acc = 0.0
             logging.info("🚀 Training started")
 
+            scaler = torch.cuda.amp.GradScaler() if self.config.device == "cuda" else None
             for epoch in range(self.config.epochs):
                 # -------- TRAINING --------
                 model.train()
@@ -111,17 +116,28 @@ class ModelTrainer:
                     attention_mask = batch["attention_mask"].to(self.config.device)
                     labels = batch["labels"].to(self.config.device)
 
-                    outputs = model(
-                        input_ids=input_ids,
-                        attention_mask=attention_mask,
-                        labels=labels,
-                    )
+                    if scaler:
+                        with torch.cuda.amp.autocast():
+                            outputs = model(
+                                input_ids=input_ids,
+                                attention_mask=attention_mask,
+                                labels=labels,
+                            )
+                        loss = outputs.loss
+                        scaler.scale(loss).backward()
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        outputs = model(
+                            input_ids=input_ids,
+                            attention_mask=attention_mask,
+                            labels=labels,
+                        )
+                        loss = outputs.loss
+                        loss.backward()
+                        optimizer.step()
 
-                    loss = outputs.loss
-                    loss.backward()
-                    optimizer.step()
-
-                    total_loss += loss.item()
+                    total_loss += loss.item() if not scaler else loss.item()
 
                 avg_loss = total_loss / len(train_loader)
                 logging.info(
@@ -163,6 +179,13 @@ class ModelTrainer:
                     model.save_pretrained(self.config.output_dir)
                     tokenizer.save_pretrained(self.config.output_dir)
                     logging.info("✅ Best model saved")
+
+                # -------- MEMORY CLEANUP --------
+                import gc
+                del batch, input_ids, attention_mask, labels, outputs
+                gc.collect()
+                if self.config.device == "cuda":
+                    torch.cuda.empty_cache()
 
             logging.info(
                 f"🎉 Training complete | Best Accuracy: {best_acc:.4f}"

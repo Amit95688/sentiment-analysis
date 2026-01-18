@@ -18,3 +18,30 @@
 [2026-01-18 19:24:07,863: INFO: data_ingestion]: Ingestion of data is completed
 [2026-01-18 19:24:19,066: INFO: data_transformation]: Data Transformation method starts
 [2026-01-18 19:24:22,724: INFO: data_transformation]: Training and Testing data read successfully
+[2026-01-18 19:42:01,161: INFO: data_ingestion]: Data Ingestion method starts
+[2026-01-18 19:42:04,300: INFO: data_ingestion]: Dataset read as pandas dataframe
+[2026-01-18 19:42:09,960: INFO: data_ingestion]: Train test split initiated
+[2026-01-18 19:42:16,162: INFO: data_ingestion]: Ingestion of data is completed
+[2026-01-18 19:42:18,403: INFO: data_transformation]: Data Transformation method starts
+[2026-01-18 19:42:21,307: INFO: data_transformation]: Training and Testing data read successfully
+[2026-01-18 19:50:55,816: INFO: data_ingestion]: Data Ingestion method starts
+[2026-01-18 19:50:58,565: INFO: data_ingestion]: Dataset read as pandas dataframe
+[2026-01-18 19:51:04,011: INFO: data_ingestion]: Train test split initiated
+[2026-01-18 19:51:10,388: INFO: data_ingestion]: Ingestion of data is completed
+[2026-01-18 19:51:13,840: INFO: data_transformation]: Data Transformation method starts
+[2026-01-18 19:51:16,344: INFO: data_transformation]: Training and Testing data read successfully
+[2026-01-18 19:53:54,201: INFO: data_ingestion]: Data Ingestion method starts
+[2026-01-18 19:54:02,144: INFO: data_ingestion]: Dataset written as pandas dataframe in chunks
+[2026-01-18 19:54:48,471: INFO: data_ingestion]: Data Ingestion method starts
+[2026-01-18 19:54:56,075: INFO: data_ingestion]: Dataset written as pandas dataframe in chunks
+[2026-01-18 19:55:34,669: INFO: data_ingestion]: Ingestion of data is completed (chunked)
+[2026-01-18 19:55:36,946: INFO: data_transformation]: Data Transformation method starts
+[2026-01-18 19:55:47,899: INFO: data_transformation]: Training and Testing data read successfully
+[2026-01-18 19:59:05,144: INFO: data_ingestion]: Data Ingestion method starts
+[2026-01-18 19:59:08,770: INFO: data_ingestion]: Dataset read as pandas dataframe
+[2026-01-18 19:59:14,750: INFO: data_ingestion]: Train test split initiated
+[2026-01-18 19:59:22,104: INFO: data_ingestion]: Ingestion of data is completed
+[2026-01-18 19:59:25,325: INFO: data_transformation]: Data Transformation method starts
+[2026-01-18 19:59:25,325: INFO: data_transformation]: Tokenizing and saving train data in chunks
+[2026-01-18 20:06:15,469: INFO: data_transformation]: Tokenizing and saving test data in chunks
+[2026-01-18 20:07:18,003: INFO: data_transformation]: Transformed data saved successfully (chunked)

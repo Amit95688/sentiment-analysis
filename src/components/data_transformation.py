@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from src.exception.exception import CustomException
 from src.logger.logging import logging
- # Do not import DataIngestion at the top to avoid circular import
+
 from dataclasses import dataclass
 import pandas as pd
 import torch 
@@ -25,20 +25,29 @@ class DataTransformation:
     def initiate_data_transformation(self, train_path, test_path):
         logging.info("Data Transformation method starts")
         try:
-            # Read the training and testing data
-            train_df = pd.read_csv(train_path)
-            test_df = pd.read_csv(test_path)
-            logging.info("Training and Testing data read successfully")
-
-            train_df['Text'] = self.tokenizer(train_df['Text'].tolist(), padding=True, truncation=True, return_tensors="pt")['input_ids'].tolist()
-            test_df['Text'] = self.tokenizer(test_df['Text'].tolist(), padding=True, truncation=True, return_tensors="pt")['input_ids'].tolist()
-            logging.info("Text data tokenized successfully")
-
-            # Save the transformed data
+            chunk_size = 10000  # Adjust as needed for memory
             os.makedirs(os.path.dirname(self.data_transformation_config.transformed_train_path), exist_ok=True)
-            train_df.to_pickle(self.data_transformation_config.transformed_train_path)
-            test_df.to_pickle(self.data_transformation_config.transformed_test_path)
-            logging.info("Transformed data saved successfully")
+
+            def tokenize_and_save(input_path, output_path):
+                chunk_iter = pd.read_csv(input_path, chunksize=chunk_size)
+                first_chunk = True
+                for chunk in chunk_iter:
+                    # Tokenize the 'Text' column in this chunk
+                    chunk['Text'] = self.tokenizer(chunk['Text'].tolist(), padding=True, truncation=True, return_tensors="pt")['input_ids'].tolist()
+                    # Save chunk to pickle (append mode)
+                    if first_chunk:
+                        chunk.to_pickle(output_path)
+                        first_chunk = False
+                    else:
+                        # Append to pickle by reading, concatenating, and saving (since pickle doesn't support append)
+                        prev = pd.read_pickle(output_path)
+                        pd.concat([prev, chunk], ignore_index=True).to_pickle(output_path)
+
+            logging.info("Tokenizing and saving train data in chunks")
+            tokenize_and_save(train_path, self.data_transformation_config.transformed_train_path)
+            logging.info("Tokenizing and saving test data in chunks")
+            tokenize_and_save(test_path, self.data_transformation_config.transformed_test_path)
+            logging.info("Transformed data saved successfully (chunked)")
             return (
                 self.data_transformation_config.transformed_train_path,
                 self.data_transformation_config.transformed_test_path
