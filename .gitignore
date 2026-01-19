@@ -3,7 +3,7 @@ artifacts/Reviews.csv
 artifacts/train.csv
 artifacts/test.csv
 artifacts/Data.csv
-
+artifacts
 # Python
 __pycache__/
 *.py[cod]
