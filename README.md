@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-
----
-
-=======
-```md
->>>>>>> c1811b7 (update)
 # 🚀 Sentiment Analysis ETL & ML Pipeline
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python)
