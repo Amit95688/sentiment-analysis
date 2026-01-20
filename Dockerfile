@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-USER airflow
 
 # Set workdir
 WORKDIR /opt/airflow
@@ -20,7 +19,10 @@ COPY requirements.txt ./
 # Copy wheels if present
 COPY wheels/ ./wheels/
 
-# Install torch from wheel if available, else from PyPI
+
+USER airflow
+
+# Install torch from wheel if available, else from PyPI (as airflow user)
 RUN set -e; \
     if [ -d "wheels" ] && ls wheels/torch*.whl 1> /dev/null 2>&1; then \
         pip install wheels/torch*.whl; \
@@ -28,7 +30,7 @@ RUN set -e; \
         pip install torch; \
     fi
 
-# Install other Python dependencies
+# Install other Python dependencies as airflow user
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy DAGs

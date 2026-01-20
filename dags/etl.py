@@ -1,86 +1,63 @@
+"""
+Airflow DAG for ML Pipeline: Data Ingestion → Transformation → Model Training (PyTorch) + DVC Integration
+"""
+from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.decorators import task
-from airflow.providers.postgres.hooks.postgres import PostgresHook
-from datetime import datetime
-import pandas as pd
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import json
+from airflow.providers.standard.operators.bash import BashOperator
 import os
+import sys
 
-POSTGRES_CONN_ID = "postgres_default"
-REVIEWS_FILE = "/opt/airflow/artifacts/train.csv"
-TMP_DIR = "/tmp/sentiment_etl"
+# Add project root to PYTHONPATH
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
-default_args = {"owner": "airflow"}
+# Default arguments
+default_args = {
+    'owner': 'ml_team',
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+    'start_date': datetime(2024, 1, 1),
+    'email_on_failure': False,
+}
 
-with DAG(
-    dag_id="etl_dag",
-    start_date=datetime(2024, 1, 1),
-    schedule="@daily",
-    catchup=False,
+# DAG definition
+dag = DAG(
+    'ml_pipeline_dvc_pytorch',
     default_args=default_args,
-    tags=["nlp", "sentiment"],
-):
+    description='DVC-based ML Pipeline: Ingestion → Transformation → Model Training (PyTorch + HPO)',
+    schedule='@weekly',
+    catchup=False,
+    tags=['ml', 'pytorch', 'dvc', 'pipeline']
+)
 
-    @task
-    def init_db():
-        hook = PostgresHook(postgres_conn_id=POSTGRES_CONN_ID)
-        hook.run("""
-            CREATE TABLE IF NOT EXISTS review_sentiment (
-                id SERIAL PRIMARY KEY,
-                review TEXT,
-                sentiment INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
+# Base path for logs and project
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
+os.makedirs(LOGS_DIR, exist_ok=True)
 
-    @task
-    def extract():
-        os.makedirs(TMP_DIR, exist_ok=True)
-        df = pd.read_csv(REVIEWS_FILE)
-        path = f"{TMP_DIR}/reviews.json"
-        df["review"].to_json(path, orient="values")
-        return path
+extract_task = BashOperator(
+    task_id="extract",
+    bash_command=f"cd {PROJECT_ROOT} && dvc repro -s data_ingestion >> {LOGS_DIR}/extract.log 2>&1",
+    dag=dag,
+)
 
-    @task
-    def transform(path: str):
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+transform_task = BashOperator(
+    task_id="transform",
+    bash_command=f"cd {PROJECT_ROOT} && dvc repro -s data_transformation >> {LOGS_DIR}/transform.log 2>&1",
+    dag=dag,
+)
 
-        tokenizer = AutoTokenizer.from_pretrained(
-            "nlptown/bert-base-multilingual-uncased-sentiment"
-        )
-        model = AutoModelForSequenceClassification.from_pretrained(
-            "nlptown/bert-base-multilingual-uncased-sentiment"
-        ).to(device)
+load_task = BashOperator(
+    task_id="load",
+    bash_command=f"cd {PROJECT_ROOT} && dvc repro -s model_training >> {LOGS_DIR}/load.log 2>&1",
+    dag=dag,
+)
 
-        reviews = json.load(open(path))
-        results = []
+push_artifacts_task = BashOperator(
+    task_id="push_artifacts",
+    bash_command=f"cd {PROJECT_ROOT} && dvc push >> {LOGS_DIR}/dvc_push.log 2>&1",
+    dag=dag,
+)
 
-        with torch.no_grad():
-            for review in reviews:
-                inputs = tokenizer(
-                    review,
-                    return_tensors="pt",
-                    truncation=True,
-                    max_length=256
-                ).to(device)
-                sentiment = model(**inputs).logits.argmax(dim=1).item() + 1
-                results.append((review, sentiment))
-
-        out = f"{TMP_DIR}/results.json"
-        json.dump(results, open(out, "w"))
-        return out
-
-    @task
-    def load(path: str):
-        records = json.load(open(path))
-        hook = PostgresHook(postgres_conn_id=POSTGRES_CONN_ID)
-        hook.run("TRUNCATE TABLE review_sentiment;")
-        hook.insert_rows(
-            "review_sentiment",
-            records,
-            target_fields=["review", "sentiment"],
-        )
-
-    init_db() >> load(transform(extract()))
+# Set ETL execution order
+extract_task >> transform_task >> load_task >> push_artifacts_task

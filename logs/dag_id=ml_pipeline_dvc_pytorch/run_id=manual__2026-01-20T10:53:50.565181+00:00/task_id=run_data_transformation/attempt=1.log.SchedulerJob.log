@@ -1,0 +1,1 @@
+[2026-01-20T10:53:51.795+0000] {scheduler_job_runner.py:781} ERROR - Executor reports task instance <TaskInstance: ml_pipeline_dvc_pytorch.run_data_transformation manual__2026-01-20T10:53:50.565181+00:00 [queued]> finished (failed) although the task says it's queued. (Info: None) Was the task killed externally?

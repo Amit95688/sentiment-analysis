@@ -11,3 +11,6 @@ jupyterlab
 nltk
 jupyterlab
 nltk
+torch
+pyspark 
+apache-airflow

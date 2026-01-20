@@ -1,0 +1,5 @@
+[2026-01-20 16:31:39,744: INFO: data_ingestion]: Data Ingestion method starts
+[2026-01-20 16:31:43,208: INFO: data_ingestion]: Dataset read as pandas dataframe
+[2026-01-20 16:31:48,086: INFO: data_ingestion]: Train test split initiated
+[2026-01-20 16:31:54,384: INFO: data_ingestion]: Ingestion of data is completed
+[2026-01-20 16:32:32,878: INFO: data_transformation]: Data Transformation method starts (Spark)

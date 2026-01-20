@@ -8,9 +8,11 @@ from src.exception.exception import CustomException
 from src.logger.logging import logging
 
 from dataclasses import dataclass
-import pandas as pd
-import torch 
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import udf
+from pyspark.sql.types import ArrayType, IntegerType
+import torch
+from transformers import AutoTokenizer
 
 @dataclass
 class DataTransformationConfig:
@@ -21,33 +23,30 @@ class DataTransformation:
     def __init__(self):
         self.data_transformation_config = DataTransformationConfig()
         self.tokenizer = AutoTokenizer.from_pretrained("nlptown/bert-base-multilingual-uncased-sentiment")
-    
+
     def initiate_data_transformation(self, train_path, test_path):
-        logging.info("Data Transformation method starts")
+        logging.info("Data Transformation method starts (Spark)")
         try:
-            chunk_size = 10000  # Adjust as needed for memory
+            spark = SparkSession.builder.appName("DataTransformation").getOrCreate()
             os.makedirs(os.path.dirname(self.data_transformation_config.transformed_train_path), exist_ok=True)
 
-            def tokenize_and_save(input_path, output_path):
-                chunk_iter = pd.read_csv(input_path, chunksize=chunk_size)
-                first_chunk = True
-                for chunk in chunk_iter:
-                    # Tokenize the 'Text' column in this chunk
-                    chunk['Text'] = self.tokenizer(chunk['Text'].tolist(), padding=True, truncation=True, return_tensors="pt")['input_ids'].tolist()
-                    # Save chunk to pickle (append mode)
-                    if first_chunk:
-                        chunk.to_pickle(output_path)
-                        first_chunk = False
-                    else:
-                        # Append to pickle by reading, concatenating, and saving (since pickle doesn't support append)
-                        prev = pd.read_pickle(output_path)
-                        pd.concat([prev, chunk], ignore_index=True).to_pickle(output_path)
+            def process_and_save(input_path, output_path):
+                df = spark.read.csv(input_path, header=True)
+                # Register UDF for tokenization
+                tokenizer = AutoTokenizer.from_pretrained("nlptown/bert-base-multilingual-uncased-sentiment")
+                def tokenize_udf(text):
+                    if text is None:
+                        return []
+                    return tokenizer(text, padding="max_length", truncation=True, max_length=256, return_tensors="pt")['input_ids'][0].tolist()
+                spark_tokenize_udf = udf(tokenize_udf, ArrayType(IntegerType()))
+                df = df.withColumn("Text_tokenized", spark_tokenize_udf(df["Text"]))
+                df.write.mode("overwrite").parquet(output_path)
 
-            logging.info("Tokenizing and saving train data in chunks")
-            tokenize_and_save(train_path, self.data_transformation_config.transformed_train_path)
-            logging.info("Tokenizing and saving test data in chunks")
-            tokenize_and_save(test_path, self.data_transformation_config.transformed_test_path)
-            logging.info("Transformed data saved successfully (chunked)")
+            logging.info("Tokenizing and saving train data with Spark")
+            process_and_save(train_path, self.data_transformation_config.transformed_train_path)
+            logging.info("Tokenizing and saving test data with Spark")
+            process_and_save(test_path, self.data_transformation_config.transformed_test_path)
+            logging.info("Transformed data saved successfully (Spark)")
             return (
                 self.data_transformation_config.transformed_train_path,
                 self.data_transformation_config.transformed_test_path
@@ -58,7 +57,6 @@ if __name__ == "__main__":
     from src.components.data_ingestion import DataIngestion  # Import here to avoid circular import
     data_ingestion = DataIngestion()
     train_data_path, test_data_path = data_ingestion.initiate_data_ingestion()
-
     data_transformation = DataTransformation()
     transformed_train_path, transformed_test_path = data_transformation.initiate_data_transformation(
         train_data_path, test_data_path
