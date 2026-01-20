@@ -1,7 +1,3 @@
-Below is a **polished, enterprise-grade README** that integrates everything you shared, improves business framing, documents the full repo structure clearly, and presents the project at a **senior data engineer / ML engineer portfolio level**.
-It’s written to be credible for **hiring managers, architects, and stakeholders**, not just developers.
-
-You can copy-paste this directly as your `README.md`.
 
 ---
 
